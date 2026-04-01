@@ -21,6 +21,7 @@ CMD ["nginx", "-g", "daemon off;"]
 # --- IMAGE FINALE BACKEND (JRE Temurin optimisée et sécurisée) ---
 FROM eclipse-temurin:17-jre-alpine as backend
 WORKDIR /app
+RUN apk update && apk upgrade --no-cache
 COPY --from=back-build /src/build/libs/*.jar app.jar
 EXPOSE 8080
 RUN addgroup -S spring && adduser -S spring -G spring
