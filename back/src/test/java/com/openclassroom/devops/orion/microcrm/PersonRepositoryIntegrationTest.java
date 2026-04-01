@@ -25,12 +25,12 @@ public class PersonRepositoryIntegrationTest {
     public void whenFindByEmail_thenReturnPerson() {
         // given
         Person jdoe = new Person();
-        jdoe.setEmail("jdoe@example.net");
+        jdoe.setEmail("jdoe-test@example.net");
         entityManager.persist(jdoe);
         entityManager.flush();
 
         // when
-        Optional<Person> found = personRepository.findByEmail("jdoe@example.net");
+        Optional<Person> found = personRepository.findByEmail("jdoe-test@example.net");
 
         assertEquals(jdoe.getEmail(), found.get().getEmail());
     }
