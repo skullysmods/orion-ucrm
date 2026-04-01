@@ -1,0 +1,45 @@
+name: 01-1 - Tests & Quality
+
+on:
+  workflow_call:
+
+jobs:
+  test-back:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: microcrm,
+          POSTGRES_USER: ${{ secrets.DB_USER }},
+          POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        ports: [5432:5432]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { java-version: '17', distribution: 'temurin' }
+      - name: Run Tests
+        run: cd back && ./gradlew test
+        env:
+          DB_HOST: localhost,
+          DB_USER: ${{ secrets.DB_USER }},
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+      - name: Upload Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-results
+          path: back/build/test-results/test/
+
+  test-front:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - name: Run Tests
+        run: cd front && npm ci && npm test -- --watch=false --browsers=ChromeHeadless
+      - name: Upload Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-test-results
+          path: front/coverage/
