@@ -9,8 +9,13 @@ on:
 jobs:
   tests-and-quality:
     runs-on: ubuntu-latest
+    # --- FIX CODEQL PERMISSIONS (C25.2) ---
+    permissions:
+      actions: read
+      contents: read
+      security-events: write 
+    
     services:
-      # Service de base de données pour les tests d'intégration (C22)
       postgres:
         image: postgres:15-alpine
         env:
@@ -28,13 +33,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Analyse de code statique (SAST - C22)
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
           languages: java, javascript
 
-      # Setup environnements pour les tests
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
@@ -46,21 +49,18 @@ jobs:
         with:
           node-version: '20'
 
-      # Exécution des tests (C22)
+      - name: Backend Tests
+        run: cd back && ./gradlew test
+        env:
+          DB_HOST: localhost
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+
       - name: Frontend Tests
         run: |
           cd front
           npm ci
           npm test -- --watch=false --browsers=ChromeHeadless
-
-      - name: Backend Tests
-        run: cd back && ./gradlew test
-        env:
-          DB_HOST: localhost
-          DB_PORT: 5432
-          DB_NAME: microcrm
-          DB_USER: ${{ secrets.DB_USER }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
@@ -74,32 +74,29 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Login to GitHub Container Registry
+      - name: Login to GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Build avec traçabilité par SHA (C21)
-      - name: Build Backend Image
-        run: docker build -t ghcr.io/${{ github.repository }}/backend:${{ github.sha }} --target backend .
+      - name: Build & Push Backend
+        run: |
+          docker build -t ghcr.io/${{ github.repository }}/backend:${{ github.sha }} --target backend .
+          docker tag ghcr.io/${{ github.repository }}/backend:${{ github.sha }} ghcr.io/${{ github.repository }}/backend:latest
+          docker push ghcr.io/${{ github.repository }}/backend:${{ github.sha }}
+          docker push ghcr.io/${{ github.repository }}/backend:latest
 
-      # Scan de sécurité bloquant (C25)
-      - name: Scan Backend Image (Trivy)
+      - name: Scan Image (Trivy)
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: 'ghcr.io/${{ github.repository }}/backend:${{ github.sha }}'
           exit-code: '1'
           severity: 'CRITICAL,HIGH'
 
-      - name: Push Images
-        run: |
-          docker push ghcr.io/${{ github.repository }}/backend:${{ github.sha }}
-          docker tag ghcr.io/${{ github.repository }}/backend:${{ github.sha }} ghcr.io/${{ github.repository }}/backend:latest
-          docker push ghcr.io/${{ github.repository }}/backend:latest
-
-  deploy-to-azure:
+  deploy-azure:
+    # Déploiement réel uniquement sur la branche main (C25.1)
     if: github.ref == 'refs/heads/main'
     needs: build-and-push
     runs-on: ubuntu-latest
@@ -109,13 +106,8 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      # Déploiement Cloud automatisé (C25)
-      - name: Deploy Backend to Azure Web App
+      - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
           app-name: ${{ secrets.AZURE_WEBAPP_NAME_BACK }}
           images: 'ghcr.io/${{ github.repository }}/backend:${{ github.sha }}'
-
-      # Orchestration et Scaling (C24)
-      - name: Scale Web App (Example of resource management)
-        run: az webapp config plan update --name MyPlan --resource-group MyRG --sku P1V2
