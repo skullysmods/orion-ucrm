@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ucrm-backend
+spec:
+  replicas: 3 # Haute disponibilité
+  selector:
+    matchLabels:
+      app: ucrm-backend
+  template:
+    metadata:
+      labels:
+        app: ucrm-backend
+    spec:
+      containers:
+      - name: backend
+        image: ghcr.io/orion/ucrm-backend:latest
+        ports:
+        - containerPort: 8080
+        env:
+        - name: DB_HOST
+          value: "postgres-service"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ucrm-backend-service
+spec:
+  selector:
+    app: ucrm-backend
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
+  type: LoadBalancer
