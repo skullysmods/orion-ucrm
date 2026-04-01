@@ -1,4 +1,4 @@
-name: CI/CD Pipeline Orion uCRM
+name: CI/CD Pipeline Orion DevSecOps
 
 on:
   push:
@@ -7,12 +7,11 @@ on:
     branches: [ main ]
 
 jobs:
-  tests-and-security:
+  security-and-tests:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      # Analyse statique (SAST)
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
@@ -41,8 +40,8 @@ jobs:
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
 
-  build-and-push:
-    needs: tests-and-security
+  build-push-deploy:
+    needs: security-and-tests
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -50,24 +49,36 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Login to GitHub Container Registry
+      - name: Login to GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Build et Scan de sécurité (Trivy)
-      - name: Build Backend Image
-        run: docker build -t ghcr.io/${{ github.repository }}/backend:latest --target backend .
+      # Build & Tag avec SHA pour traçabilité
+      - name: Build and Scan Images
+        run: |
+          docker build -t ghcr.io/${{ github.repository }}/backend:${{ github.sha }} --target backend .
+          docker build -t ghcr.io/${{ github.repository }}/frontend:${{ github.sha }} --target frontend .
 
-      - name: Scan Backend Image (Trivy)
+      # Scan de sécurité bloquant (Trivy)
+      - name: Run Trivy Scan
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: 'ghcr.io/${{ github.repository }}/backend:latest'
+          image-ref: 'ghcr.io/${{ github.repository }}/backend:${{ github.sha }}'
+          exit-code: '1'
           severity: 'CRITICAL,HIGH'
-          exit-code: '1' # Bloque le pipeline si vulnérabilités
 
       - name: Push Images
         run: |
-          docker push ghcr.io/${{ github.repository }}/backend:latest
+          docker push ghcr.io/${{ github.repository }}/backend:${{ github.sha }}
+          docker push ghcr.io/${{ github.repository }}/frontend:${{ github.sha }}
+
+      # Note : Cette étape simule la création du secret dans le cluster sans fichier YAML physique
+      - name: Create K8s Secret from GitHub Secrets
+        run: |
+          echo "kubectl create secret generic db-secrets \
+            --from-literal=username=${{ secrets.DB_USER }} \
+            --from-literal=password=${{ secrets.DB_PASSWORD }} \
+            --dry-run=client -o yaml | kubectl apply -f -"
