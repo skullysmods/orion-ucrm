@@ -14,6 +14,7 @@ RUN ./gradlew build -x test
 
 # --- IMAGE FINALE FRONTEND (Nginx pour la haute disponibilité) ---
 FROM nginx:alpine as frontend
+RUN apk update && apk upgrade --no-cache
 COPY --from=front-build /src/dist/microcrm/browser /usr/share/nginx/html
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]

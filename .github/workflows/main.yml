@@ -9,7 +9,6 @@ on:
 jobs:
   tests-and-quality:
     runs-on: ubuntu-latest
-    # --- FIX CODEQL PERMISSIONS (C25.2) ---
     permissions:
       actions: read
       contents: read
@@ -32,36 +31,30 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@v4
         with:
           languages: java, javascript
-
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
-      
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-
       - name: Backend Tests
         run: cd back && ./gradlew test
         env:
           DB_HOST: localhost
           DB_USER: ${{ secrets.DB_USER }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-
       - name: Frontend Tests
         run: |
           cd front
           npm ci
           npm test -- --watch=false --browsers=ChromeHeadless
-
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
 
@@ -73,41 +66,38 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v4
-
-      - name: Login to GitHub Container Registry
+      - name: Login to GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # --- BUILD DES DEUX IMAGES (C21, C23) ---
-      - name: Build Backend and Frontend Images
+      # Build des deux images (C23)
+      - name: Build & Tag Images
         run: |
           docker build -t ghcr.io/${{ github.repository }}/backend:${{ github.sha }} --target backend .
-          docker build -t ghcr.io/${{ github.repository }}/frontend:${{ github.sha }} --target frontend .
-          
-          # Tags "latest" pour faciliter le déploiement
           docker tag ghcr.io/${{ github.repository }}/backend:${{ github.sha }} ghcr.io/${{ github.repository }}/backend:latest
+          docker build -t ghcr.io/${{ github.repository }}/frontend:${{ github.sha }} --target frontend .
           docker tag ghcr.io/${{ github.repository }}/frontend:${{ github.sha }} ghcr.io/${{ github.repository }}/frontend:latest
 
-      # --- SCANS DE SÉCURITÉ (C25.2) ---
-      - name: Scan Backend Image (Trivy)
+      # Scans de sécurité (C25.2)
+      - name: Scan Backend (Trivy)
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: 'ghcr.io/${{ github.repository }}/backend:${{ github.sha }}'
           exit-code: '1'
           severity: 'CRITICAL,HIGH'
 
-      - name: Scan Frontend Image (Trivy)
+      - name: Scan Frontend (Trivy)
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: 'ghcr.io/${{ github.repository }}/frontend:${{ github.sha }}'
           exit-code: '1'
           severity: 'CRITICAL,HIGH'
 
-      # --- PUSH DES IMAGES (C25.1) ---
-      - name: Push all images to GHCR
+      # Push (C25.1)
+      - name: Push Images
         run: |
           docker push ghcr.io/${{ github.repository }}/backend:${{ github.sha }}
           docker push ghcr.io/${{ github.repository }}/backend:latest
@@ -115,7 +105,6 @@ jobs:
           docker push ghcr.io/${{ github.repository }}/frontend:latest
 
   deploy-azure:
-    # Déploiement réel uniquement sur la branche main (C25.1)
     if: github.ref == 'refs/heads/main'
     needs: build-and-push
     runs-on: ubuntu-latest
@@ -125,8 +114,14 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Deploy to Azure Web App
+      - name: Deploy Backend
         uses: azure/webapps-deploy@v3
         with:
           app-name: ${{ secrets.AZURE_WEBAPP_NAME_BACK }}
           images: 'ghcr.io/${{ github.repository }}/backend:${{ github.sha }}'
+
+      - name: Deploy Frontend
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ secrets.AZURE_WEBAPP_NAME_FRONT }}
+          images: 'ghcr.io/${{ github.repository }}/frontend:${{ github.sha }}'
