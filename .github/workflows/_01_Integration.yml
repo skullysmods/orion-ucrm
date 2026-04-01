@@ -8,5 +8,9 @@ on:
 
 jobs:
   tests-and-quality:
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
     uses: ./.github/workflows/01-1_Tests.yml
     secrets: inherit
