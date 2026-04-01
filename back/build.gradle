@@ -23,6 +23,7 @@ dependencies {
 	implementation 'ro.polak:spring-boot-data-fixtures:0.2.0'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	runtimeOnly 'org.hsqldb:hsqldb'
+	runtimeOnly 'org.postgresql:postgresql'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
