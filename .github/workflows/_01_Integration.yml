@@ -2,13 +2,20 @@ name: Integration
 
 on:
   push:
-    branches: [ develop, main ]
+    branches:
+      - develop
+      - main
 
 jobs:
   tests:
     uses: ./.github/workflows/01-1_Tests.yml
     secrets: inherit
+
   codeql:
     needs: [tests]
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
     uses: ./.github/workflows/01-2_CodeQL.yml
     secrets: inherit
