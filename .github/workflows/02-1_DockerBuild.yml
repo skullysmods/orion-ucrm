@@ -17,13 +17,23 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build and Push
-        run: |
-          docker build -t ghcr.io/${{ github.repository }}/backend:${{ github.sha }} --target backend .
-          docker build -t ghcr.io/${{ github.repository }}/frontend:${{ github.sha }} --target frontend .
-          docker tag ghcr.io/${{ github.repository }}/backend:${{ github.sha }} ghcr.io/${{ github.repository }}/backend:latest
-          docker tag ghcr.io/${{ github.repository }}/frontend:${{ github.sha }} ghcr.io/${{ github.repository }}/frontend:latest
-          docker push ghcr.io/${{ github.repository }}/backend:${{ github.sha }}
-          docker push ghcr.io/${{ github.repository }}/backend:latest
-          docker push ghcr.io/${{ github.repository }}/frontend:${{ github.sha }}
-          docker push ghcr.io/${{ github.repository }}/frontend:latest
+
+      - name: Build and push Backend
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          target: backend
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}/backend:${{ github.sha }}
+            ghcr.io/${{ github.repository }}/backend:latest
+
+      - name: Build and push Frontend
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          target: frontend
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}/frontend:${{ github.sha }}
+            ghcr.io/${{ github.repository }}/frontend:latest
