@@ -7,15 +7,6 @@ on:
       - main
 
 jobs:
-  tests:
+  tests-and-quality:
     uses: ./.github/workflows/01-1_Tests.yml
-    secrets: inherit
-
-  codeql:
-    needs: [tests]
-    permissions:
-      security-events: write
-      actions: read
-      contents: read
-    uses: ./.github/workflows/01-2_CodeQL.yml
     secrets: inherit
