@@ -13,3 +13,10 @@ jobs:
           image-ref: 'ghcr.io/${{ github.repository }}/backend:${{ github.sha }}'
           exit-code: '1'
           severity: 'CRITICAL,HIGH'
+
+      - name: Scan Frontend
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'ghcr.io/${{ github.repository }}/frontend:${{ github.sha }}'
+          exit-code: '1'
+          severity: 'CRITICAL,HIGH'
