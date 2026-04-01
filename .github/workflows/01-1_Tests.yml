@@ -1,0 +1,49 @@
+name: 01-1 - Tests & Quality
+
+on:
+  workflow_call:
+
+jobs:
+  test-and-quality:
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: microcrm
+          POSTGRES_USER: ${{ secrets.DB_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        ports: [5432:5432]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: java
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run Tests Back & Build
+        run: cd back && ./gradlew test
+        env:
+          DB_HOST: localhost
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+
+      - name: Run Tests Front
+        run: cd front && npm ci && npm test -- --watch=false --browsers=ChromeHeadless
+          
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v4

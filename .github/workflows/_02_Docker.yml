@@ -1,0 +1,19 @@
+name: Deployment
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    uses: ./.github/workflows/02-1_DockerBuild.yml
+    secrets: inherit
+  trivy:
+    needs: build
+    uses: ./.github/workflows/02-2_TrivyScan.yml
+    secrets: inherit
+  deploy:
+    needs: trivy
+    uses: ./.github/workflows/02-3_DeployAzure.yml
+    secrets: inherit

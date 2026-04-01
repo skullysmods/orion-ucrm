@@ -4,6 +4,7 @@ import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -11,6 +12,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @DataJpaTest
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 public class PersonRepositoryIntegrationTest {
 
     @Autowired
@@ -23,12 +25,12 @@ public class PersonRepositoryIntegrationTest {
     public void whenFindByEmail_thenReturnPerson() {
         // given
         Person jdoe = new Person();
-        jdoe.setEmail("jdoe@example.net");
+        jdoe.setEmail("jdoe-test@example.net");
         entityManager.persist(jdoe);
         entityManager.flush();
 
         // when
-        Optional<Person> found = personRepository.findByEmail("jdoe@example.net");
+        Optional<Person> found = personRepository.findByEmail("jdoe-test@example.net");
 
         assertEquals(jdoe.getEmail(), found.get().getEmail());
     }
