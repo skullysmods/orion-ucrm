@@ -7,6 +7,9 @@ on:
 
 jobs:
   build:
+    permissions:
+      contents: read
+      packages: write
     uses: ./.github/workflows/02-1_DockerBuild.yml
     secrets: inherit
   trivy:
