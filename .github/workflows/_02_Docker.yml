@@ -18,5 +18,8 @@ jobs:
     secrets: inherit
   deploy:
     needs: trivy
+    permissions:
+      id-token: write
+      contents: read
     uses: ./.github/workflows/02-3_DeployAzure.yml
     secrets: inherit
