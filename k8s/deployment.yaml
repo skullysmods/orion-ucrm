@@ -1,52 +1,115 @@
+# --- BACKEND DEPLOYMENT (C24) ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: ucrm-backend
+  name: backend-deployment
+  labels:
+    app: backend
 spec:
   replicas: 3 # Haute disponibilité
   selector:
     matchLabels:
-      app: ucrm-backend
+      app: backend
   template:
     metadata:
       labels:
-        app: ucrm-backend
+        app: backend
     spec:
+      # Secret pour récupérer l'image sur GHCR (C23)
+      imagePullSecrets:
+        - name: ghcr-secret
       containers:
-      - name: backend
-        image: ghcr.io/orion/ucrm-backend:latest
-        ports:
-        - containerPort: 8080
-        resources:
-          requests:
-            memory: "256Mi"
-            cpu: "250m"
-          limits:
-            memory: "512Mi"
-            cpu: "500m"
-        env:
-        - name: DB_HOST
-          value: "db-service"
-        - name: DB_USER
-          valueFrom:
-            secretKeyRef:
-              name: db-secrets
-              key: username
-        - name: DB_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: db-secrets
-              key: password
+        - name: backend
+          image: ghcr.io/skullysmods/orion-ucrm/backend:latest
+          ports:
+            - containerPort: 8080
+          # Configuration des ressources pour le HPA (C24.2)
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          # Injection des variables d'environnement via Secret (C25.2)
+          env:
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:postgresql://$(DB_HOST):5432/microcrm?sslmode=require"
+            - name: DB_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: db-secret
+                  key: host
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: db-secret
+                  key: user
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: db-secret
+                  key: password
 ---
+# --- BACKEND SERVICE (C24.1) ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: ucrm-backend-service
+  name: backend-service
 spec:
   selector:
-    app: ucrm-backend
+    app: backend
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
+  type: ClusterIP
+
+---
+
+# --- FRONTEND DEPLOYMENT (C24) ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-deployment
+  labels:
+    app: frontend
+spec:
+  replicas: 2 # Scaling indépendant du backend
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      imagePullSecrets:
+        - name: ghcr-secret
+      containers:
+        - name: frontend
+          image: ghcr.io/skullysmods/orion-ucrm/frontend:latest
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "200m"
+              memory: "256Mi"
+
+---
+# --- FRONTEND SERVICE (Point d'entrée public) ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-service
+spec:
+  selector:
+    app: frontend
   ports:
     - protocol: TCP
       port: 80
-      targetPort: 8080
-  type: LoadBalancer
+      targetPort: 80
+  type: LoadBalancer # Crée une IP publique sur Azure AKS
