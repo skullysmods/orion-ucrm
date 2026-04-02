@@ -1,0 +1,66 @@
+name: 02-3 - Deploy to AKS (Infrastructure & App)
+
+on:
+  workflow_call:
+
+jobs:
+  provision-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # --- ÉTAPE 1 : PROVISIONING INFRASTRUCTURE (C24) ---
+      - name: Ensure AKS Cluster exists
+        run: |
+          # Création du groupe de ressources
+          az group create --name ${{ secrets.AZURE_RESOURCE_GROUP }} --location westeurope
+          
+          # Création du cluster AKS (si inexistant)
+          if ! az aks show --name orion-cluster --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} > /dev/null 2>&1; then
+            az aks create \
+              --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+              --name orion-cluster \
+              --node-count 2 \
+              --generate-ssh-keys \
+              --node-vm-size Standard_B2s # Taille adaptée au compte Student
+          fi
+
+      # --- ÉTAPE 2 : CONFIGURATION DE L'ORCHESTRATEUR (C24.1) ---
+      - name: Get AKS Credentials
+        run: az aks get-credentials --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} --name orion-cluster --overwrite-existing
+
+      - name: Create Image Pull Secret (pour GHCR)
+        run: |
+          kubectl create secret docker-registry ghcr-secret \
+            --docker-server=https://ghcr.io \
+            --docker-username=${{ github.actor }} \
+            --docker-password=${{ secrets.GITHUB_TOKEN }} \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Create DB Secrets (C25.2)
+        run: |
+          kubectl create secret generic db-secret \
+            --from-literal=host=${{ secrets.DB_HOST }} \
+            --from-literal=user=${{ secrets.DB_USER }} \
+            --from-literal=password=${{ secrets.DB_PASSWORD }} \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      # --- ÉTAPE 3 : DÉPLOIEMENT APPLICATIF (C25.1) ---
+      - name: Deploy to AKS
+        run: |
+          # Remplacement dynamique des images dans les manifests
+          sed -i 's|backend:latest|ghcr.io/${{ github.repository }}/backend:${{ github.sha }}|g' k8s/deployment.yaml
+          sed -i 's|frontend:latest|ghcr.io/${{ github.repository }}/frontend:${{ github.sha }}|g' k8s/deployment.yaml
+          
+          kubectl apply -f k8s/deployment.yaml
+          kubectl apply -f k8s/hpa.yaml
