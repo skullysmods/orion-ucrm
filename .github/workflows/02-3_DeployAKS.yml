@@ -61,9 +61,9 @@ jobs:
       # --- ÉTAPE 3 : DÉPLOIEMENT APPLICATIF (C25.1) ---
       - name: Deploy to AKS
         run: |
-          # Remplacement dynamique pour utiliser le SHA du commit (C22.2)
-          sed -i 's|backend:latest|ghcr.io/${{ github.repository }}/backend:${{ github.sha }}|g' k8s/deployment.yaml
-          sed -i 's|frontend:latest|ghcr.io/${{ github.repository }}/frontend:${{ github.sha }}|g' k8s/deployment.yaml
+          # On remplace uniquement le tag :latest par le SHA du commit
+          # Cela évite de doubler l'URL du registre
+          sed -i 's|:latest|:${{ github.sha }}|g' k8s/deployment.yaml
           
           kubectl apply -f k8s/deployment.yaml
           kubectl apply -f k8s/hpa.yaml
