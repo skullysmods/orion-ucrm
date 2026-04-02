@@ -23,7 +23,7 @@ jobs:
       - name: Ensure AKS Cluster exists
         run: |
           # Création du groupe de ressources
-          az group create --name ${{ secrets.AZURE_RESOURCE_GROUP }} --location westeurope
+          az group create --name ${{ secrets.AZURE_RESOURCE_GROUP }} --location francecentral
           
           # Création du cluster AKS (si inexistant)
           if ! az aks show --name orion-cluster --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} > /dev/null 2>&1; then
