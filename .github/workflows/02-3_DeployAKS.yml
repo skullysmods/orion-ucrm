@@ -22,6 +22,9 @@ jobs:
       # --- ÉTAPE 1 : PROVISIONING INFRASTRUCTURE (C24) ---
       - name: Ensure AKS Cluster exists
         run: |
+          # Enregistrement du service (évite l'erreur MissingSubscriptionRegistration)
+          az provider register --namespace Microsoft.ContainerService
+          
           # Création du groupe de ressources
           az group create --name ${{ secrets.AZURE_RESOURCE_GROUP }} --location francecentral
           
@@ -30,9 +33,9 @@ jobs:
             az aks create \
               --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
               --name orion-cluster \
-              --node-count 2 \
+              --node-count 1 \
               --generate-ssh-keys \
-              --node-vm-size Standard_B2s # Taille adaptée au compte Student
+              --node-vm-size standard_b2s_v2 # Taille corrigée pour francecentral
           fi
 
       # --- ÉTAPE 2 : CONFIGURATION DE L'ORCHESTRATEUR (C24.1) ---
@@ -58,7 +61,7 @@ jobs:
       # --- ÉTAPE 3 : DÉPLOIEMENT APPLICATIF (C25.1) ---
       - name: Deploy to AKS
         run: |
-          # Remplacement dynamique des images dans les manifests
+          # Remplacement dynamique pour utiliser le SHA du commit (C22.2)
           sed -i 's|backend:latest|ghcr.io/${{ github.repository }}/backend:${{ github.sha }}|g' k8s/deployment.yaml
           sed -i 's|frontend:latest|ghcr.io/${{ github.repository }}/frontend:${{ github.sha }}|g' k8s/deployment.yaml
           
