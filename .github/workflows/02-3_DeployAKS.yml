@@ -19,7 +19,6 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      # --- ÉTAPE 1 : PROVISIONING INFRASTRUCTURE (C24) ---
       - name: Ensure AKS Cluster exists
         run: |
           # Enregistrement du service (évite l'erreur MissingSubscriptionRegistration)
@@ -38,7 +37,6 @@ jobs:
               --node-vm-size standard_b2s_v2 # Taille corrigée pour francecentral
           fi
 
-      # --- ÉTAPE 2 : CONFIGURATION DE L'ORCHESTRATEUR (C24.1) ---
       - name: Get AKS Credentials
         run: az aks get-credentials --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} --name orion-cluster --overwrite-existing
 
@@ -58,7 +56,6 @@ jobs:
             --from-literal=password=${{ secrets.DB_PASSWORD }} \
             --dry-run=client -o yaml | kubectl apply -f -
 
-      # --- ÉTAPE 3 : DÉPLOIEMENT APPLICATIF (C25.1) ---
       - name: Deploy to AKS
         run: |
           # On remplace uniquement le tag :latest par le SHA du commit

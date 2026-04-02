@@ -1,4 +1,3 @@
-# --- BACKEND DEPLOYMENT (C24) ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -6,7 +5,7 @@ metadata:
   labels:
     app: backend
 spec:
-  replicas: 3 # Haute disponibilité
+  replicas: 3
   selector:
     matchLabels:
       app: backend
@@ -15,7 +14,6 @@ spec:
       labels:
         app: backend
     spec:
-      # Secret pour récupérer l'image sur GHCR (C23)
       imagePullSecrets:
         - name: ghcr-secret
       containers:
@@ -23,7 +21,6 @@ spec:
           image: ghcr.io/skullysmods/orion-ucrm/backend:latest
           ports:
             - containerPort: 8080
-          # Configuration des ressources pour le HPA (C24.2)
           resources:
             requests:
               cpu: "100m"
@@ -31,20 +28,16 @@ spec:
             limits:
               cpu: "500m"
               memory: "512Mi"
-          # Injection des variables d'environnement via Secret (C25.2)
           env:
-            # 1. D'abord définir l'hôte pour qu'il soit disponible pour les autres (C24)
             - name: DB_HOST
               valueFrom:
                 secretKeyRef:
-                  name: db-secret # Vérifiez bien le nom (avec ou sans 's')
+                  name: db-secret
                   key: host
             
-            # 2. Puis utiliser l'hôte dans l'URL
             - name: SPRING_DATASOURCE_URL
               value: "jdbc:postgresql://$(DB_HOST):5432/microcrm?sslmode=require"
               
-            # 3. Identifiants (C25.2)
             - name: SPRING_DATASOURCE_USERNAME
               valueFrom:
                 secretKeyRef:
@@ -56,7 +49,6 @@ spec:
                   name: db-secret
                   key: password
 ---
-# --- BACKEND SERVICE (C24.1) ---
 apiVersion: v1
 kind: Service
 metadata:
@@ -72,7 +64,6 @@ spec:
 
 ---
 
-# --- FRONTEND DEPLOYMENT (C24) ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -80,7 +71,7 @@ metadata:
   labels:
     app: frontend
 spec:
-  replicas: 2 # Scaling indépendant du backend
+  replicas: 2
   selector:
     matchLabels:
       app: frontend
@@ -105,7 +96,6 @@ spec:
               memory: "256Mi"
 
 ---
-# --- FRONTEND SERVICE (Point d'entrée public) ---
 apiVersion: v1
 kind: Service
 metadata:
@@ -117,4 +107,4 @@ spec:
     - protocol: TCP
       port: 80
       targetPort: 80
-  type: LoadBalancer # Crée une IP publique sur Azure AKS
+  type: LoadBalancer
